@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VANTA_LOG</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --cyan: #00d4ff; --purple: #7b2fff; --bg: #020408;
+  --text: rgba(255,255,255,0.82);
+}
+body {
+  background: var(--bg); color: var(--cyan);
+  font-family: 'Courier New', monospace;
+  padding: 16px; padding-bottom: 40px;
+  min-height: 100vh;
+}
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+  background-size: 36px 36px; pointer-events: none; z-index: 0;
+}
+.wrap { position: relative; z-index: 1; max-width: 600px; margin: 0 auto; }
+
+.header { text-align: center; margin-bottom: 24px; padding-top: 8px; }
+.header-sub { font-size: 9px; letter-spacing: 6px; color: var(--cyan); opacity: 0.45; margin-bottom: 6px; }
+.header-title {
+  font-size: 26px; font-weight: 900; letter-spacing: 5px;
+  background: linear-gradient(135deg, var(--cyan), var(--purple));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-transform: uppercase;
+}
+.header-desc { font-size: 9px; letter-spacing: 3px; color: var(--purple); margin-top: 5px; }
+
+.tab-row { display: flex; gap: 8px; margin-bottom: 16px; }
+.tab {
+  flex: 1; padding: 10px; font-family: inherit;
+  font-size: 10px; letter-spacing: 2px; cursor: pointer;
+  background: transparent; border: 1px solid rgba(0,212,255,0.2);
+  color: rgba(0,212,255,0.35);
+}
+.tab.active { background: rgba(0,212,255,0.12); border-color: var(--cyan); color: var(--cyan); }
+
+.panel {
+  border: 1px solid rgba(0,212,255,0.18);
+  background: rgba(0,212,255,0.04);
+  padding: 16px; margin-bottom: 16px; position: relative;
+}
+.panel-label {
+  position: absolute; top: -9px; left: 16px;
+  background: var(--bg); padding: 0 8px;
+  font-size: 9px; letter-spacing: 3px; color: var(--cyan);
+}
+.input-label { font-size: 9px; letter-spacing: 2px; color: rgba(0,212,255,0.5); margin-bottom: 6px; display: block; }
+.api-input {
+  width: 100%; background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(0,212,255,0.25); color: var(--text);
+  padding: 10px 12px; font-family: inherit; font-size: 11px;
+  outline: none; display: block; margin-bottom: 6px;
+}
+textarea.api-input { font-family: sans-serif; font-size: 12px; line-height: 1.6; resize: vertical; }
+.key-ok { font-size: 9px; color: rgba(0,212,255,0.5); }
+.key-warn { font-size: 9px; color: rgba(255,180,0,0.7); }
+
+.btn {
+  padding: 11px 18px; font-family: inherit;
+  font-size: 10px; letter-spacing: 2px; cursor: pointer; border: none;
+}
+.btn-cyan { background: rgba(0,212,255,0.12); border: 1px solid var(--cyan); color: var(--cyan); }
+.btn-purple { background: rgba(123,47,255,0.12); border: 1px solid var(--purple); color: var(--purple); }
+.btn-red { background: transparent; border: 1px solid rgba(255,50,50,0.3); color: rgba(255,80,80,0.6); font-size: 9px; }
+.btn:disabled { opacity: 0.4; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+
+.news-item {
+  padding: 11px 12px; border: 1px solid rgba(0,212,255,0.1); background: transparent;
+  cursor: pointer; display: flex; align-items: flex-start; gap: 10px;
+  margin-bottom: 7px; width: 100%; text-align: left; font-family: inherit;
+}
+.news-item.selected { border-color: var(--cyan); background: rgba(0,212,255,0.05); }
+.news-badge { font-size: 8px; border: 1px solid currentColor; padding: 2px 5px; white-space: nowrap; flex-shrink: 0; }
+.bg-space { color: var(--cyan); }
+.bg-ai { color: var(--purple); }
+.bg-geo { color: #ff6b35; }
+.bg-block { color: #f7931a; }
+.bg-war { color: #ff3b3b; }
+.news-title { font-size: 11px; color: var(--text); line-height: 1.5; font-family: sans-serif; }
+
+.empty { text-align: center; padding: 28px; color: rgba(0,212,255,0.25); font-size: 10px; }
+.loading { text-align: center; padding: 18px; font-size: 10px; color: var(--cyan); }
+.err { border: 1px solid rgba(255,50,50,0.35); background: rgba(255,50,50,0.05); padding: 10px 14px; margin-bottom: 14px; color: #ff5050; font-size: 10px; }
+
+.post-card { border: 1px solid rgba(123,47,255,0.3); background: rgba(123,47,255,0.03); padding: 14px; margin-bottom: 14px; }
+.post-card.is-reply { border-color: rgba(0,212,255,0.3); background: rgba(0,212,255,0.02); }
+.post-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 6px; }
+.post-theme { font-size: 8px; color: var(--purple); border: 1px solid var(--purple); padding: 2px 7px; }
+.post-theme.r { color: var(--cyan); border-color: var(--cyan); }
+.post-time { font-size: 8px; color: rgba(255,255,255,0.35); }
+.lang-row { display: flex; justify-content: space-between; margin-bottom: 7px; }
+.lang-jp { font-size: 8px; color: rgba(0,212,255,0.45); }
+.lang-en { font-size: 8px; color: rgba(123,47,255,0.45); }
+.post-text { background: rgba(0,0,0,0.45); padding: 12px; font-size: 12px; line-height: 1.85; color: var(--text); white-space: pre-wrap; margin-bottom: 8px; }
+.tx-jp { border-left: 2px solid rgba(0,212,255,0.4); }
+.tx-en { border-left: 2px solid rgba(123,47,255,0.4); }
+.section { margin-bottom: 14px; }
+.divider { height: 1px; background: rgba(0,212,255,0.08); margin: 12px 0; }
+.cp { font-size: 9px; padding: 7px 14px; }
+.cp-jp { background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.3); color: var(--cyan); }
+.cp-en { background: rgba(123,47,255,0.08); border: 1px solid rgba(123,47,255,0.3); color: var(--purple); }
+.status { text-align: center; font-size: 8px; color: rgba(0,212,255,0.2); margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="header-sub">SYSTEM ONLINE</div>
+    <div class="header-title">VANTA_LOG</div>
+    <div class="header-desc">POST GENERATION SYSTEM</div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-label">API CONFIG</div>
+    <label class="input-label">ANTHROPIC API KEY</label>
+    <input type="password" class="api-input" id="apiKey" placeholder="sk-ant-...">
+    <div id="keyStatus" class="key-warn">APIキーを入力してください</div>
+  </div>
+
+  <div class="tab-row">
+    <button class="tab active" id="tabPost">POST MODE</button>
+    <button class="tab" id="tabReply">REPLY MODE</button>
+  </div>
+
+  <div id="modePost">
+    <div class="panel">
+      <div class="panel-label">SIGNAL CAPTURE</div>
+      <div class="btn-row">
+        <button class="btn btn-cyan" id="btnScan">SCAN FEEDS</button>
+        <button class="btn btn-purple" id="btnAuto" style="display:none">AUTO x 3</button>
+      </div>
+      <div id="newsList"><div class="empty">AWAITING SIGNAL</div></div>
+    </div>
+  </div>
+
+  <div id="modeReply" style="display:none">
+    <div class="panel">
+      <div class="panel-label">TARGET POST</div>
+
+      <label class="input-label">スクリーンショットをアップロード（推奨）</label>
+      <div id="pasteZone" style="border:1px dashed rgba(0,212,255,0.3);background:rgba(0,212,255,0.02);padding:14px;text-align:center;font-size:10px;color:rgba(0,212,255,0.5);margin-bottom:8px;cursor:pointer">
+        Ctrl+V または ⌘+V で画像を貼り付け
+      </div>
+      <input type="file" id="imgInput" accept="image/*" class="api-input" style="padding:8px">
+      <div id="imgPreview" style="display:none;margin-bottom:10px">
+        <img id="imgPreviewEl" style="max-width:100%;max-height:200px;border:1px solid rgba(0,212,255,0.3)">
+        <button class="btn btn-red" id="btnClearImg" style="margin-top:6px">CLEAR IMAGE</button>
+      </div>
+
+      <div style="margin:14px 0;text-align:center;font-size:9px;color:rgba(0,212,255,0.4)">--- OR ---</div>
+
+      <label class="input-label">テキストを貼り付け</label>
+      <textarea id="replyInput" class="api-input" rows="4" placeholder="投稿テキストを貼り付け"></textarea>
+
+      <button class="btn btn-cyan" id="btnReply" style="margin-top:10px">GENERATE REPLY</button>
+    </div>
+  </div>
+
+  <div class="err" id="errBox" style="display:none"></div>
+  <div class="loading" id="loadBox" style="display:none">VANTA IS OBSERVING...</div>
+
+  <div class="panel" id="postsPanel" style="display:none">
+    <div class="panel-label" id="postsLabel">TRANSMISSION LOG</div>
+    <div id="postsList"></div>
+    <button class="btn btn-red" id="btnClear">CLEAR LOG</button>
+  </div>
+
+  <div class="status">VANTA_LOG 2026</div>
+</div>
+
+<script>
+"use strict";
+
+var FEEDS = [
+  {n:"NASA",       u:"https://www.nasa.gov/feed/",                         c:"space"},
+  {n:"SpaceX",     u:"https://www.nasaspaceflight.com/feed/",              c:"space"},
+  {n:"MIT Tech",   u:"https://www.technologyreview.com/feed/",             c:"ai"},
+  {n:"Wired",      u:"https://www.wired.com/feed/rss",                     c:"ai"},
+  {n:"The Verge",  u:"https://www.theverge.com/rss/index.xml",             c:"ai"},
+  {n:"Ars Tech",   u:"https://feeds.arstechnica.com/arstechnica/index",    c:"ai"},
+  {n:"Tesla",      u:"https://www.teslarati.com/feed/",                    c:"ai"},
+  {n:"VentureBeat",u:"https://venturebeat.com/category/ai/feed/",          c:"ai"},
+  {n:"Reuters",    u:"https://feeds.reuters.com/reuters/technologyNews",   c:"geo"},
+  {n:"BBC Tech",   u:"https://feeds.bbci.co.uk/news/technology/rss.xml",   c:"geo"},
+  {n:"CoinDesk",   u:"https://www.coindesk.com/arc/outboundfeeds/rss/",    c:"block"},
+  {n:"Decrypt",    u:"https://decrypt.co/feed",                            c:"block"},
+  {n:"CoinTele",   u:"https://cointelegraph.com/rss",                      c:"block"},
+  {n:"DefenseOne", u:"https://www.defenseone.com/rss/all/",                c:"war"},
+  {n:"WarRocks",   u:"https://warontherocks.com/feed/",                    c:"war"},
+  {n:"The Drive",  u:"https://www.thedrive.com/feeds/all.rss",             c:"war"},
+  {n:"Al Jazeera", u:"https://www.aljazeera.com/xml/rss/all.xml",          c:"war"},
+  {n:"For.Policy", u:"https://foreignpolicy.com/feed/",                    c:"war"}
+];
+var RSS2JSON = "https://api.rss2json.com/v1/api.json?rss_url=";
+
+var newsData = [];
+var posts = [];
+var busy = false;
+var imgData = null;
+
+function $(id) { return document.getElementById(id); }
+
+function setBusy(v) {
+  busy = v;
+  $("loadBox").style.display = v ? "block" : "none";
+  $("btnScan").disabled = v;
+  $("btnAuto").disabled = v;
+  $("btnReply").disabled = v;
+}
+
+function showErr(msg) {
+  var el = $("errBox");
+  el.textContent = msg ? "Error: " + msg : "";
+  el.style.display = msg ? "block" : "none";
+}
+
+function esc(s) {
+  return (s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function getKey() { return $("apiKey").value.trim(); }
+
+function setKeyOk() {
+  $("keyStatus").textContent = "APIキー読み込み済み";
+  $("keyStatus").className = "key-ok";
+}
+
+function onKeyInput() {
+  var k = getKey();
+  if (k.indexOf("sk-ant-") === 0) {
+    localStorage.setItem("vanta_key", k);
+    setKeyOk();
+  } else {
+    $("keyStatus").textContent = "sk-ant- で始まるキーを入力してください";
+    $("keyStatus").className = "key-warn";
+  }
+}
+
+function switchMode(mode) {
+  if (mode === "post") {
+    $("modePost").style.display = "block";
+    $("modeReply").style.display = "none";
+    $("tabPost").classList.add("active");
+    $("tabReply").classList.remove("active");
+  } else {
+    $("modePost").style.display = "none";
+    $("modeReply").style.display = "block";
+    $("tabReply").classList.add("active");
+    $("tabPost").classList.remove("active");
+  }
+  posts = [];
+  renderPosts();
+}
+
+function fetchNews() {
+  if (!getKey()) { showErr("APIキーを入力してください"); return; }
+  setBusy(true); showErr(""); newsData = [];
+
+  var promises = FEEDS.map(function(f) {
+    return fetch(RSS2JSON + encodeURIComponent(f.u))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.items) {
+          d.items.slice(0, 2).forEach(function(item) {
+            newsData.push({
+              title: item.title || "",
+              desc: ((item.description || "").replace(/<[^>]*>/g, "")).slice(0, 200),
+              link: item.link || "",
+              src: f.n, cat: f.c
+            });
+          });
+        }
+      })
+      .catch(function() {});
+  });
+
+  Promise.all(promises).then(function() {
+    newsData = newsData.sort(function() { return Math.random() - 0.5; }).slice(0, 12);
+    renderNews();
+    setBusy(false);
+    $("btnAuto").style.display = newsData.length ? "inline-block" : "none";
+  });
+}
+
+function renderNews() {
+  if (!newsData.length) {
+    $("newsList").innerHTML = '<div class="empty">NO SIGNAL</div>';
+    return;
+  }
+  var html = "";
+  newsData.forEach(function(item, i) {
+    html += '<button class="news-item" data-i="' + i + '">' +
+      '<span class="news-badge bg-' + item.cat + '">' + esc(item.src) + '</span>' +
+      '<span class="news-title">' + esc(item.title) + '</span>' +
+      '</button>';
+  });
+  $("newsList").innerHTML = html;
+
+  var btns = document.querySelectorAll(".news-item");
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].addEventListener("click", function() {
+      if (!busy) genPost(parseInt(this.getAttribute("data-i")));
+    });
+  }
+}
+
+function genAll() {
+  var i = 0;
+  function next() {
+    if (i >= Math.min(3, newsData.length)) return;
+    genPost(i).then(function() { i++; next(); });
+  }
+  next();
+}
+
+function genPost(idx) {
+  if (busy) return Promise.resolve();
+  var key = getKey();
+  if (!key) { showErr("APIキーを入力してください"); return Promise.resolve(); }
+  var item = newsData[idx];
+  if (!item) return Promise.resolve();
+
+  var btns = document.querySelectorAll(".news-item");
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove("selected");
+  var sel = document.querySelector('[data-i="' + idx + '"]');
+  if (sel) sel.classList.add("selected");
+
+  setBusy(true); showErr("");
+
+  var prompt = "OUTPUT ONLY RAW JSON. No preamble. Start with { end with }.\n\n" +
+    "You are VANTA (@VANTA_LOG), a mysterious information observer. Short, sharp, mysterious language.\n\n" +
+    "Generate a VANTA-style post based on this news.\n\n" +
+    "RULES:\n" +
+    "- Japanese: 120-140 chars (must be 120+, max 140)\n" +
+    "- English: 180-250 chars (must be 180+, max 250)\n" +
+    "- Implications, not assertions\n" +
+    "- Use line breaks\n" +
+    "- No emojis\n\n" +
+    'JSON: {"japanese":"...","english":"...","theme":"..."}\n\n' +
+    "News:\nTitle: " + item.title + "\nContent: " + (item.desc || "no detail") + "\nSource: " + item.src;
+
+  return callAPI(prompt, item.title.slice(0, 40), item.link, false);
+}
+
+function genReply() {
+  if (busy) return;
+  var key = getKey();
+  if (!key) { showErr("APIキーを入力してください"); return; }
+
+  var text = $("replyInput").value.trim();
+  if (!imgData && !text) { showErr("画像またはテキストを入力してください"); return; }
+
+  setBusy(true); showErr("");
+
+  var promptText = "OUTPUT ONLY RAW JSON. No preamble. Start with { end with }.\n\n" +
+    "You are VANTA (@VANTA_LOG), a mysterious information observer.\n\n" +
+    (imgData ? "Extract from screenshot: author, post text, quoted post if any. Then generate a VANTA-style reply.\n\n" : "Generate a VANTA-style reply to this post.\n\n") +
+    "RULES:\n" +
+    "- Japanese: 40-100 chars (max 100)\n" +
+    "- English: 60-160 chars (max 160)\n" +
+    "- Strike at the core\n" +
+    "- End with question or sharp observation\n" +
+    "- No emojis\n" +
+    "- Skip politically charged topics (immigration, partisan politics). If detected, return: {\"japanese\":\"このトピックはスキップ\",\"english\":\"Skipped\",\"theme\":\"SKIPPED\"}\n\n" +
+    'JSON: {"japanese":"...","english":"...","theme":"..."}' +
+    (text ? "\n\nAdditional context:\n" + text : "");
+
+  var content;
+  if (imgData) {
+    content = [
+      { type: "image", source: { type: "base64", media_type: imgData.type, data: imgData.data } },
+      { type: "text", text: promptText }
+    ];
+  } else {
+    content = promptText;
+  }
+
+  var srcLabel = imgData ? "[IMG]" : text.slice(0, 40);
+  callAPI(content, srcLabel, "", true);
+}
+
+function callAPI(content, srcText, link, isReply) {
+  var body = JSON.stringify({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 1500,
+    messages: [{ role: "user", content: content }]
+  });
+
+  return fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "x-api-key": getKey(),
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: body
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.error) { showErr(data.error.message); setBusy(false); return; }
+
+    var raw = (data.content && data.content[0] ? data.content[0].text : "").trim();
+    raw = raw.replace(/```json/g, "").replace(/```/g, "");
+
+    // Extract JSON block
+    var start = raw.indexOf("{");
+    var end = raw.lastIndexOf("}");
+    if (start < 0 || end < 0) {
+      showErr("JSON抽出失敗");
+      setBusy(false);
+      return;
+    }
+    var jsonStr = raw.substring(start, end + 1);
+
+    var parsed;
+    try { parsed = JSON.parse(jsonStr); }
+    catch (e) { showErr("JSON parse error: " + e.message); setBusy(false); return; }
+
+    var jp = parsed.japanese || "";
+    var en = parsed.english || "";
+
+    posts.unshift({
+      id: Date.now(),
+      jp: jp, en: en,
+      theme: parsed.theme || "-",
+      src: srcText,
+      time: new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }),
+      jpLen: jp.length, enLen: en.length,
+      isReply: isReply
+    });
+    renderPosts();
+    setBusy(false);
+  })
+  .catch(function(e) {
+    showErr(e.message);
+    setBusy(false);
+  });
+}
+
+function renderPosts() {
+  if (!posts.length) { $("postsPanel").style.display = "none"; return; }
+  $("postsPanel").style.display = "block";
+  $("postsLabel").textContent = "TRANSMISSION LOG (" + posts.length + ")";
+
+  var html = "";
+  posts.forEach(function(p) {
+    var jpMax = p.isReply ? 100 : 140;
+    var enMax = p.isReply ? 160 : 250;
+    var jpOver = p.jpLen > jpMax;
+    var enOver = p.enLen > enMax;
+    var jpC = jpOver ? "#ff5050" : "rgba(0,212,255,0.45)";
+    var enC = enOver ? "#ff5050" : "rgba(123,47,255,0.45)";
+    var card = p.isReply ? "post-card is-reply" : "post-card";
+    var theme = p.isReply ? "post-theme r" : "post-theme";
+    var tag = p.isReply ? "[REPLY] " : "";
+
+    html += '<div class="' + card + '">' +
+      '<div class="post-header">' +
+        '<span class="' + theme + '">' + tag + esc(p.theme) + '</span>' +
+        '<span class="post-time">' + p.time + '</span>' +
+      '</div>' +
+      '<div class="section">' +
+        '<div class="lang-row">' +
+          '<span class="lang-jp">JPN</span>' +
+          '<span style="font-size:9px;color:' + jpC + '">' + p.jpLen + '/' + jpMax + (jpOver ? ' OVER' : '') + '</span>' +
+        '</div>' +
+        '<div class="post-text tx-jp">' + esc(p.jp) + '</div>' +
+        '<button class="btn cp cp-jp" data-id="' + p.id + '" data-l="jp">COPY 日本語</button>' +
+      '</div>' +
+      '<div class="divider"></div>' +
+      '<div class="section">' +
+        '<div class="lang-row">' +
+          '<span class="lang-en">ENG</span>' +
+          '<span style="font-size:9px;color:' + enC + '">' + p.enLen + '/' + enMax + (enOver ? ' OVER' : '') + '</span>' +
+        '</div>' +
+        '<div class="post-text tx-en">' + esc(p.en) + '</div>' +
+        '<button class="btn cp cp-en" data-id="' + p.id + '" data-l="en">COPY English</button>' +
+      '</div>' +
+    '</div>';
+  });
+  $("postsList").innerHTML = html;
+
+  var btns = document.querySelectorAll(".cp");
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].addEventListener("click", function() {
+      doCopy(parseInt(this.getAttribute("data-id")), this.getAttribute("data-l"), this);
+    });
+  }
+}
+
+function doCopy(id, lang, btn) {
+  var post = null;
+  for (var i = 0; i < posts.length; i++) {
+    if (posts[i].id === id) { post = posts[i]; break; }
+  }
+  if (!post) return;
+  var text = lang === "jp" ? post.jp : post.en;
+  var orig = btn.textContent;
+
+  function done() {
+    btn.textContent = "COPIED";
+    setTimeout(function() { btn.textContent = orig; }, 2000);
+  }
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(done).catch(function() { fallback(text); done(); });
+  } else {
+    fallback(text); done();
+  }
+}
+
+function fallback(text) {
+  var ta = document.createElement("textarea");
+  ta.value = text; ta.style.cssText = "position:fixed;opacity:0";
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); } catch (e) {}
+  document.body.removeChild(ta);
+}
+
+function clearAll() { posts = []; renderPosts(); }
+
+// === Init ===
+window.addEventListener("DOMContentLoaded", function() {
+  var saved = localStorage.getItem("vanta_key");
+  if (saved) { $("apiKey").value = saved; setKeyOk(); }
+
+  $("apiKey").addEventListener("input", onKeyInput);
+  $("btnScan").addEventListener("click", fetchNews);
+  $("btnAuto").addEventListener("click", genAll);
+  $("btnClear").addEventListener("click", clearAll);
+  $("btnReply").addEventListener("click", genReply);
+  $("tabPost").addEventListener("click", function() { switchMode("post"); });
+  $("tabReply").addEventListener("click", function() { switchMode("reply"); });
+
+  $("imgInput").addEventListener("change", function(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      imgData = {
+        data: ev.target.result.split(",")[1],
+        type: file.type
+      };
+      $("imgPreviewEl").src = ev.target.result;
+      $("imgPreview").style.display = "block";
+    };
+    reader.readAsDataURL(file);
+  });
+
+  $("btnClearImg").addEventListener("click", function() {
+    imgData = null;
+    $("imgInput").value = "";
+    $("imgPreview").style.display = "none";
+  });
+
+  // クリップボードから画像ペースト
+  function handlePastedImage(blob) {
+    if (!blob) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      imgData = {
+        data: ev.target.result.split(",")[1],
+        type: blob.type
+      };
+      $("imgPreviewEl").src = ev.target.result;
+      $("imgPreview").style.display = "block";
+    };
+    reader.readAsDataURL(blob);
+  }
+
+  document.addEventListener("paste", function(e) {
+    if ($("modeReply").style.display === "none") return;
+    var items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf("image") !== -1) {
+        e.preventDefault();
+        handlePastedImage(items[i].getAsFile());
+        return;
+      }
+    }
+  });
+
+  // ペーストゾーンタップで明示
+  $("pasteZone").addEventListener("click", function() {
+    $("imgInput").click();
+  });
+});
+</script>
+</body>
+</html>
