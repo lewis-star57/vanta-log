@@ -433,6 +433,12 @@ function callAPI(content, srcText, link, isReply) {
     var jp = parsed.japanese || "";
     var en = parsed.english || "";
 
+    if (!jp && !en) {
+      showErr("生成結果が空でした。もう一度お試しください。");
+      setBusy(false);
+      return;
+    }
+
     posts.unshift({
       id: Date.now(),
       jp: jp, en: en,
@@ -550,17 +556,36 @@ window.addEventListener("DOMContentLoaded", function() {
   $("imgInput").addEventListener("change", function(e) {
     var file = e.target.files[0];
     if (!file) return;
+    processImageFile(file);
+  });
+
+  function processImageFile(file) {
     var reader = new FileReader();
     reader.onload = function(ev) {
-      imgData = {
-        data: ev.target.result.split(",")[1],
-        type: file.type
+      var img = new Image();
+      img.onload = function() {
+        // リサイズ（最大幅1024px）
+        var maxW = 1024;
+        var scale = img.width > maxW ? maxW / img.width : 1;
+        var canvas = document.createElement("canvas");
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        var ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        var dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        imgData = {
+          data: dataUrl.split(",")[1],
+          type: "image/jpeg"
+        };
+        $("imgPreviewEl").src = dataUrl;
+        $("imgPreview").style.display = "block";
       };
-      $("imgPreviewEl").src = ev.target.result;
-      $("imgPreview").style.display = "block";
+      img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
-  });
+  }
 
   $("btnClearImg").addEventListener("click", function() {
     imgData = null;
@@ -571,16 +596,7 @@ window.addEventListener("DOMContentLoaded", function() {
   // クリップボードから画像ペースト
   function handlePastedImage(blob) {
     if (!blob) return;
-    var reader = new FileReader();
-    reader.onload = function(ev) {
-      imgData = {
-        data: ev.target.result.split(",")[1],
-        type: blob.type
-      };
-      $("imgPreviewEl").src = ev.target.result;
-      $("imgPreview").style.display = "block";
-    };
-    reader.readAsDataURL(blob);
+    processImageFile(blob);
   }
 
   document.addEventListener("paste", function(e) {
